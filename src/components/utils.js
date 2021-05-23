@@ -1,3 +1,30 @@
+export const dropboxToCilentModel = (s) => {
+  const output = {
+    id: s.id,
+    type: s['.tag'],
+    title: s.name,
+    datetime: s.client_modified,
+    pathLower: s.path_lower,
+    hasThumbnail: false,
+    thumbnail: '' 
+  };
+  return output;
+}
+
+export const resolveThumbnail = (model, thumbnails) => {
+  let _model = model;
+  thumbnails.forEach(x => {
+    if(x['.tag'] === 'success') {
+      const thumbnail = `data:image/png;base64, ${x.thumbnail}`;
+      _model = _model.map(el => el.id === x.metadata.id ? {...el, hasThumbnail: true, thumbnail }: el);
+    }
+  })
+  return _model;
+} 
+
+export const sortDropboxFiles = (a, b) => {
+  return (a.type === 'folder') ? -1 : 1;
+}
 export const parseQueryString = (str) => {
   const ret = Object.create(null);
 
