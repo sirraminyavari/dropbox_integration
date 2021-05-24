@@ -8,6 +8,7 @@ export const dropboxToCilentModel = (s) => {
     hasThumbnail: false,
     thumbnail: '' 
   };
+  console.log(output);
   return output;
 }
 
@@ -21,6 +22,16 @@ export const resolveThumbnail = (model, thumbnails) => {
   })
   return _model;
 } 
+
+export const makePath = (src) => {
+  let path = '';
+  if(src.length === 1) return path;
+
+  src.forEach(x => {
+    path = `${path}/${x.path}`;
+  })
+  return path;
+}
 
 export const sortDropboxFiles = (a, b) => {
   return (a.type === 'folder') ? -1 : 1;

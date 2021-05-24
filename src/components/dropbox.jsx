@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {Dropbox} from 'dropbox';
 import { parseQueryString, resolveThumbnail, sortDropboxFiles } from './utils'
 import { EMPTY, from, of } from 'rxjs';
-import { tap, map, switchMap } from 'rxjs/operators';
-import { dropboxToCilentModel } from './utils'
+import { tap, map, switchMap, filter, mergeMap } from 'rxjs/operators';
+import { dropboxToCilentModel, makePath } from './utils'
 import ListView from './list.view'
 import { catchError } from 'rxjs/operators';
 
@@ -14,7 +14,7 @@ const REDIRECT_URI = 'http://localhost:3000';
 
 
 const initQuery = {pageToken: '', value: '', parent: 'root'};
-const initPath = [{name: 'root', id: ''}];
+const initLocation = [{name: 'root', path: ''}];
 const initEmbed = { status: false, url: ''};
 const fetchDataErrorInit = { status: false, message: null, code: 0}
 
@@ -40,7 +40,7 @@ const DropboxMain = () => {
   const [pageToken, setPageToken] = useState(undefined);
   const [loading, setLoading] = useState(false);
   const [grid, setGrid] = useState(false);
-  const [path, setPath] = useState(initPath);
+  const [location, setLocation] = useState(initLocation);
   const [query, setQuery] = useState(initQuery);
   const [embed, setEmbed] = useState(initEmbed)
   const [selected, setSelected] = useState([]);
@@ -75,47 +75,36 @@ const DropboxMain = () => {
 
   useEffect(() => {
 
-    const load$ = load().subscribe();
+    const load$ = of(location.path).pipe(
+      switchMap(x => load())
+    ).subscribe();
+    
     
     return () => { load$.unsubscribe(); }
-  }, [dbx, path]);
+  }, [dbx, location]);
 
 
   useEffect(() => {
-    
-    let loadNext$ = EMPTY
-    if(pageToken) {
-      loadNext$ = next().subscribe();
-    }
-
-    return () => { }
+    const loadNext$ = of(pageToken).pipe(
+      filter(() => pageToken),
+      switchMap(x => next())
+    ).subscribe();
+    return () => { loadNext$.unsubscribe()}
   }, [loadNext]);
 
   const load = () => {
     setLoading(true);
     if (dbx === null) return EMPTY;
+    const { path } = location;
     return from(dbx.filesListFolder({
-      path: path.id,
+      path: makePath(location),
       limit: 3
     })).pipe(
-      tap(x => {
-        setPageToken(x.result.cursor);
-        setHasMore(x.result.has_more);
-      }),
-      map(x => x.result),
-      map(x => x.entries.map(y => dropboxToCilentModel(y))),
-      switchMap(x => {
-        const model = x;
-        return loadThumbnails(x).pipe(
-          map(res => resolveThumbnail(model, res.result.entries)),
-          map(x => files.concat(x) ),
-          tap(x => { setFiles(x); setLoading(false)}),
-          tap(() => files.sort((a, b) => sortDropboxFiles(a, b))),
-          catchError(err => {
-            setLoading(false);
-            return of(err);
-          })
-        );
+      dataModelModification(),
+      tap(() => { setLoading(false); }),
+      catchError(err => {
+        setLoading(false);
+        return of(err);
       })
     );
   }
@@ -125,8 +114,17 @@ const DropboxMain = () => {
     return from(dbx.filesListFolderContinue({
       cursor: pageToken
     })).pipe(
-      tap(x => {
-        console.log(x);
+      dataModelModification(),
+      tap(() => { setLoading(false); }),
+      catchError(err => {
+        setLoading(false);
+        return of(err);
+      })
+    )
+  }
+
+  const dataModelModification = () => {
+    return tap(x => {
         setPageToken(x.result.cursor);
         setHasMore(x.result.has_more);
       }),
@@ -136,16 +134,11 @@ const DropboxMain = () => {
         const model = x;
         return loadThumbnails(x).pipe(
           map(res => resolveThumbnail(model, res.result.entries)),
-          map(x => files.concat(x) ),
-          tap(x => { setFiles(x); setLoading(false)}),
+          map(res => files.concat(x) ),
+          tap(res => { setFiles(res); }),
           tap(() => files.sort((a, b) => sortDropboxFiles(a, b))),
-          catchError(err => {
-            setLoading(false);
-            return of(err);
-          })
         );
-      })
-    )
+      });
   }
 
   const loadThumbnails = (files) => {
@@ -157,12 +150,17 @@ const DropboxMain = () => {
           size: 'w64h64'
         }))),
         switchMap(x => {
+          console.log(x)
           return from(dbx.filesGetThumbnailBatch({
             entries: JSON.parse(JSON.stringify(x))
           }))
         })
       );
   }
+
+  useEffect(() => {
+    console.log(files)
+  }, [files])
 
 
   const login = async() => {
