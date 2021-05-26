@@ -1,7 +1,7 @@
 import React, {useEffect, useLayoutEffect, useState} from 'react';
 import {gapi} from 'gapi-script';
 import {from, of} from 'rxjs';
-import {catchError, switchMap, tap, debounceTime, distinctUntilChanged, first } from 'rxjs/operators';
+import {catchError, switchMap, tap, debounceTime, distinctUntilChanged, first, map } from 'rxjs/operators';
 import Connect from './connect';
 import ListView from './list.view';
 import {FIELDS} from "./util";
@@ -9,7 +9,7 @@ import './styles.css'
 import PathView from "./path.view";
 import EmbedFilePreview from "./embed.file.preview";
 import ErrorPage from "./error.page";
-
+import { gDriveToCilentModel } from './utils';
 
     /* *
         GOOGLE DRIVE PROJECT CREDENTIALS
@@ -123,10 +123,6 @@ const Main = (props) => {
         })).pipe(
             first(),
             tap(x => {
-                const newFiles = files.concat(x.result.files)
-                setFiles(newFiles);
-                setLoading(false);
-                console.log(newFiles)
                 if (x.result.nextPageToken) {
                     // nextPageToken is not undefined which is mean there is left data to fetch 
                     setPageToken(x.result.nextPageToken);
@@ -134,6 +130,15 @@ const Main = (props) => {
                 } else {
                     setHasMore(false)
                 }
+            }),
+            map(x => x.result.files.map(x => gDriveToCilentModel(x))),
+            tap(x => {
+                console.log(x)
+                const newFiles = files.concat(x)
+                setFiles(newFiles);
+                setLoading(false);
+                
+
             }),
             catchError(err => {
                 setFetchDataError({
@@ -221,11 +226,12 @@ const Main = (props) => {
             this method triggers when an item clicked. when the item type is folder the path state to this folder.
      */
     const openFolder = (file) => {
-        if (file.mimeType !== 'application/vnd.google-apps.folder') {
+        if (file.type !== 'folder') {
             return;
         }
         flushSelectedFiles();
-        setPath([...path, {name: file.name, id: file.id}])
+        console.log(file);
+        setPath([...path, {name: file.title, id: file.id}])
         setQuery({...query, value: '', pageToken: '', parent: file.id});
         setFiles([]);
     }

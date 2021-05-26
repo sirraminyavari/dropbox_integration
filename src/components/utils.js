@@ -6,9 +6,39 @@ export const dropboxToCilentModel = (s) => {
     datetime: s.client_modified,
     pathLower: s.path_lower,
     hasThumbnail: false,
-    thumbnail: '' 
+    thumbnail: '',
+    folderColorRgb: '#2196F3'
   };
-  console.log(output);
+  return output;
+}
+
+export const gDriveToCilentModel = (s) => {
+  const output = {
+    id: s.id,
+    type: s.mimeType === 'application/vnd.google-apps.folder' ? 'folder': 'file',
+    title: s.name,
+    datetime: s.modifiedTime,
+    hasThumbnail: s.hasThumbnail,
+    thumbnail: s.hasThumbnail ? s.thumbnailLink: s.iconLink,
+    folderColorRgb: s.folderColorRgb,
+    parents: s.parents,
+    webViewLink: s.webViewLink
+  };
+  return output;
+}
+
+export const dropboxToCilentSearchModel = (src) => {
+  const s = src.metadata;
+  const output = {
+    id: s.id,
+    type: s['.tag'],
+    title: s.name,
+    datetime: s.client_modified,
+    pathLower: s.path_lower,
+    hasThumbnail: false,
+    thumbnail: '',
+    folderColorRgb: '#2196F3'
+  };
   return output;
 }
 
@@ -27,10 +57,10 @@ export const makePath = (src) => {
   let path = '';
   if(src.length === 1) return path;
 
-  src.forEach(x => {
-    path = `${path}/${x.path}`;
-  })
-  return path;
+  // src.forEach(x => {
+  //   path = `${path}/${x.path}`;
+  // })
+  return src[src.length -1].path;
 }
 
 export const sortDropboxFiles = (a, b) => {

@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import {Dropbox} from 'dropbox';
-import { parseQueryString, resolveThumbnail, sortDropboxFiles } from './utils'
+import { parseQueryString, resolveThumbnail, sortDropboxFiles, dropboxToCilentSearchModel } from './utils'
 import { EMPTY, from, of } from 'rxjs';
 import { tap, map, switchMap, filter, mergeMap } from 'rxjs/operators';
 import { dropboxToCilentModel, makePath } from './utils'
 import ListView from './list.view'
 import { catchError } from 'rxjs/operators';
-
+import PathView from './path.view';
+import DropboxConnect from './dropbox.connect'
 
 const STORAGE_KEY = 'pwnzolgprg7hngfkjscg59vd';
 const CLIENT_ID = `gguc9kwsbgr920c`;
 const REDIRECT_URI = 'http://localhost:3000';
 
 
-const initQuery = {pageToken: '', value: '', parent: 'root'};
 const initLocation = [{name: 'root', path: ''}];
 const initEmbed = { status: false, url: ''};
 const fetchDataErrorInit = { status: false, message: null, code: 0}
@@ -41,10 +41,11 @@ const DropboxMain = () => {
   const [loading, setLoading] = useState(false);
   const [grid, setGrid] = useState(false);
   const [location, setLocation] = useState(initLocation);
-  const [query, setQuery] = useState(initQuery);
+  const [query, setQuery] = useState('');
   const [embed, setEmbed] = useState(initEmbed)
   const [selected, setSelected] = useState([]);
   const [fetchDataError, setFetchDataError] = useState(fetchDataErrorInit);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     window.addEventListener('message', e => {
@@ -76,32 +77,55 @@ const DropboxMain = () => {
   useEffect(() => {
 
     const load$ = of(location.path).pipe(
+      filter(() => !searching),
       switchMap(x => load())
+    ).subscribe();
+
+    const searchFiles$ = of(location.path).pipe(
+      filter(() => searching),
+      switchMap(x => searchFiles())
     ).subscribe();
     
     
-    return () => { load$.unsubscribe(); }
-  }, [dbx, location]);
+    return () => { 
+      load$.unsubscribe(); 
+      searchFiles$.unsubscribe();
+    }
+  }, [dbx, location, searching]);
 
 
   useEffect(() => {
     const loadNext$ = of(pageToken).pipe(
-      filter(() => pageToken),
+      filter(() => pageToken && !searching),
       switchMap(x => next())
     ).subscribe();
     return () => { loadNext$.unsubscribe()}
   }, [loadNext]);
 
   const load = () => {
+    setFiles([]);
     setLoading(true);
     if (dbx === null) return EMPTY;
     const { path } = location;
     return from(dbx.filesListFolder({
       path: makePath(location),
-      limit: 3
+      limit: 20
     })).pipe(
-      dataModelModification(),
-      tap(() => { setLoading(false); }),
+      tap(x => {
+        setPageToken(x.result.cursor);
+        setHasMore(x.result.has_more);
+      }),
+      map(x => x.result),
+      map(x => x.entries.map(y => dropboxToCilentModel(y))),
+      switchMap(x => {
+        const model = x;
+        return loadThumbnails(x).pipe(
+          map(res => resolveThumbnail(model, res.result.entries)),
+          tap(res => { 
+            setFiles(res); setLoading(false); }),
+          tap(() => files.sort((a, b) => sortDropboxFiles(a, b))),
+        );
+      }),
       catchError(err => {
         setLoading(false);
         return of(err);
@@ -114,17 +138,7 @@ const DropboxMain = () => {
     return from(dbx.filesListFolderContinue({
       cursor: pageToken
     })).pipe(
-      dataModelModification(),
-      tap(() => { setLoading(false); }),
-      catchError(err => {
-        setLoading(false);
-        return of(err);
-      })
-    )
-  }
-
-  const dataModelModification = () => {
-    return tap(x => {
+      tap(x => {
         setPageToken(x.result.cursor);
         setHasMore(x.result.has_more);
       }),
@@ -134,11 +148,41 @@ const DropboxMain = () => {
         const model = x;
         return loadThumbnails(x).pipe(
           map(res => resolveThumbnail(model, res.result.entries)),
-          map(res => files.concat(x) ),
-          tap(res => { setFiles(res); }),
+          map(res => files.concat(res) ),
+          tap(res => { setFiles(res); setLoading(false); }),
           tap(() => files.sort((a, b) => sortDropboxFiles(a, b))),
         );
-      });
+      }),
+      catchError(err => {
+        setLoading(false);
+        return of(err);
+      })
+    )
+  }
+
+  const searchFiles = () => {
+    setFiles([]);
+    setLoading(true);
+    return from(dbx.filesSearch({
+      path: makePath(location),
+      mode: 'filename',
+      query
+    })).pipe(
+      map(x => x.result),
+      map(x => x.matches.map(y => dropboxToCilentSearchModel(y))),
+      switchMap(x => {
+        const model = x;
+        return loadThumbnails(x).pipe(
+          map(res => resolveThumbnail(model, res.result.entries)),
+          tap(res => { setFiles(res); setLoading(false); }),
+          tap(() => files.sort((a, b) => sortDropboxFiles(a, b))),
+        );
+      }),
+      catchError(err => {
+        setLoading(false);
+        return of(err);
+      })
+    )
   }
 
   const loadThumbnails = (files) => {
@@ -150,7 +194,6 @@ const DropboxMain = () => {
           size: 'w64h64'
         }))),
         switchMap(x => {
-          console.log(x)
           return from(dbx.filesGetThumbnailBatch({
             entries: JSON.parse(JSON.stringify(x))
           }))
@@ -158,12 +201,8 @@ const DropboxMain = () => {
       );
   }
 
-  useEffect(() => {
-    console.log(files)
-  }, [files])
 
-
-  const login = async() => {
+  const connect = async() => {
 
     const dbx = new Dropbox({ clientId: CLIENT_ID });
     const url = await dbx.auth.getAuthenticationUrl(REDIRECT_URI);
@@ -183,9 +222,38 @@ const DropboxMain = () => {
       this method triggers when an item clicked. when the item type is folder the path state to this folder.
   */
     const openFolder = (file) => {
+      if (file.type !== 'folder') {
+        return;
+      }
+      const filePath = file.pathLower;
+      const lastInex = filePath.length;
+      const lastPortionindex = file.pathLower.lastIndexOf('/') + 1;
+      const pathName = filePath.slice(lastPortionindex, lastInex);
+      setLocation([...location, {name: pathName, path: filePath}])
     }
 
-        /*
+    const navigatePath = (selectedLocation) => {
+      const fileIndex = location.indexOf(selectedLocation)
+      const newLocation = location.slice(0, fileIndex + 1);
+      setFiles([]);
+      setLocation(newLocation);
+    }
+
+    const search = (e) => {
+      setQuery(e.target.value);
+      if(e.target.value !== '') {
+        setSearching(true);
+      } else {
+        setSearching(false);
+      }
+    }
+
+    const reset = () => {
+      setQuery('');
+      setSearching(false);
+    }
+
+    /*
     *   OPEN EMBEDED FILE PREVIEW
     */
         const closeEmbed = () => {
@@ -214,12 +282,13 @@ const DropboxMain = () => {
 
   }
 
+  if (!dbxData.loggedIn) {
+    return <DropboxConnect connect={() => connect()}></DropboxConnect>
+  }
+
+
   return (
     <div>
-      <div>Drop Box</div>
-      { !dbxData.loggedIn &&  <button onClick={() => login()}>login</button>}
-      { dbxData.loggedIn &&  <div >Your Logged In</div>}
-      {/* { dbxData.loggedIn &&  <button onClick={() => logout()}>logout</button>} */}
         <div className="wrapper">
 
             <div className="disconnect-box">
@@ -247,20 +316,20 @@ const DropboxMain = () => {
 
 
             {/* search feild */}
-            {/* <div className="search-box">
+            <div className="search-box">
                 <div>
                     <input className="search-field"
-                           value={query.value}
+                           value={query}
                            type="text"
                            placeholder="Search"
                            onChange={e => search(e)}/>
                 </div>
-            </div> */}
+            </div>
 
             
             <div className="search-box">
                 <div className="filter-box">
-                    {/* <button className="filter-btn" onClick={() => reset()}>RESET SEARCH</button> */}
+                    <button className="filter-btn" onClick={() => reset()}>RESET SEARCH</button>
                     <div style={{flexGrow: 4}}></div>
                     <button className={grid ? 'filter-btn' : 'selected'}
                             onClick={() => setGrid(false)}>LIST
@@ -271,7 +340,7 @@ const DropboxMain = () => {
                 </div>
             </div>
 
-            {/* <PathView paths={path} navigate={navigatePath}></PathView> */}
+           {!searching &&  <PathView paths={location} navigate={navigatePath}></PathView>}
 
             {/* { !fetchDataError.status &&
             <SelectedFileContext.Provider value={selected}> */}
@@ -285,7 +354,7 @@ const DropboxMain = () => {
             } */}
 
             {
-                !loading && !fetchDataError.status &&
+                !loading && !fetchDataError.status && !searching &&
                 <div style={{display: (!hasMore) ? 'none' : 'block'}}>
                     <button onClick={() => setLoadNext(!loadNext)} className="load-more-btn">LOAD MORE</button>
                 </div>

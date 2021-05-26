@@ -16,7 +16,7 @@ const GridItem = (props) => {
             <div style={{display: 'flex', padding: '5px'}}>
 
                 {
-                    file.mimeType !== 'folder' &&
+                    file.type !== 'folder' &&
                     <div className="checkbox-container">
                         <Checkbox select={toggleSelect} file={file}></Checkbox>
                     </div>
@@ -37,7 +37,7 @@ const GridItem = (props) => {
                 <FolderIcon color={file.folderColorRgb}></FolderIcon>}
 
                 <div className="grid-item-details">
-                    <div>{file.name}</div>
+                    <div>{file.title}</div>
                     <div style={{fontSize: '12px', color: '#bdbdbd'}}>{
                         `${localDate(file.modifiedTime)} - ${localTime(file.modifiedTime)}`
                     }</div>

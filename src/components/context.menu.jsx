@@ -7,7 +7,7 @@ const ContextMenu = (props) => {
 
     if (!file) return <div></div>;
 
-    if (file.mimeType === 'application/vnd.google-apps.folder'){
+    if (file.type === 'folder'){
         return (
             <div style={style} className={!showMenu ? 'context-menu': 'context-menu active'}>
                 <div onClick={() => open(file)}>open</div>

@@ -32,7 +32,7 @@ const ListItem = (props) => {
                  className={file.hasThumbnail ? 'file-thumbnail': 'file-icon'} alt=""/>}
 
             {file.type === 'folder' &&
-            <FolderIcon color="#03a9f4"></FolderIcon>}
+            <FolderIcon color={file.folderColorRgb}></FolderIcon>}
 
 
             <div className="list-item-name">{file.title}</div>

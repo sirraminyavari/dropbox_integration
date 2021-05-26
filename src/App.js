@@ -1,11 +1,14 @@
 import './App.css';
 import DropboxMain from './components/dropbox'
-import { useEffect} from 'react';
+import { useEffect, useState} from 'react';
+import GoogleDrive from './components/google.drive';
 
 function App() {
 
+  const [drive, setDrive] = useState('gdrive');
+
   useEffect(() => {
-    
+  
     const hash = window.location.hash;
     const search = window.location.search;
   
@@ -19,7 +22,12 @@ function App() {
 
   return (
     <div className="App">
-      <DropboxMain></DropboxMain>
+      <div>
+        <button onClick={() => setDrive('gdrive')}>GOOGLE DRIVE</button>
+        <button onClick={() => setDrive('dropbox')}>DROPBOX</button>
+      </div>
+      {drive === "gdrive" && <GoogleDrive></GoogleDrive>}
+      {drive === "dropbox" && <DropboxMain></DropboxMain>}
     </div>
   );
 }

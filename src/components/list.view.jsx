@@ -1,7 +1,7 @@
 import React, {Fragment, useState} from 'react';
 import ListItem from './list.item';
 import shortid from 'shortid';
-// import ContextMenu from "./context.menu";
+import ContextMenu from "./context.menu";
 import GridItem from "./grid.item";
 
 const ListView = (props) => {
@@ -66,15 +66,16 @@ const ListView = (props) => {
     return (
 
         <Fragment>
-            {/* <ContextMenu file={menuItem} clientY={clientY} clientX={clientX}
+            <ContextMenu file={menuItem} clientY={clientY} clientX={clientX}
                          showMenu={showMenu} open={openFolder}
                          openAsEmbed={openEmbed}
-                         openInTab={openInNewTab}></ContextMenu> */}
+                         openInTab={openInNewTab}></ContextMenu>
 
             {!grid &&
             <div className="list-container">
                 {
-                    files.map(x => <div key={shortid.generate()}>
+                    files.map(x => <div key={shortid.generate()} onDoubleClick={() => openFolder(x)} onContextMenu={e => context(e, x)}
+                    onClick={() => removeContext()}>
                         <ListItem file={x} select={toggleSelect}></ListItem>
                     </div>)
                 }
@@ -84,7 +85,8 @@ const ListView = (props) => {
             {grid &&
             <div className="grid-container">
                 {
-                    files.map(x => <div key={shortid.generate()} >
+                    files.map(x => <div key={shortid.generate()} onDoubleClick={() => openFolder(x)} onContextMenu={e => context(e, x)}
+                    onClick={() => removeContext()}>
                         <GridItem file={x} select={toggleSelect}></GridItem>
                     </div>)
                 }
