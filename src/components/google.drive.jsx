@@ -9,7 +9,7 @@ import './styles.css'
 import PathView from "./path.view";
 import EmbedFilePreview from "./embed.file.preview";
 import ErrorPage from "./error.page";
-import { gDriveToCilentModel } from './utils';
+import { gDriveToCilentModel, SelectedFileContext } from './utils';
 
     /* *
         GOOGLE DRIVE PROJECT CREDENTIALS
@@ -40,8 +40,7 @@ const initPath = [{name: 'root', id: 'root'}];
 const initEmbed = { status: false, url: ''};
 const fetchDataErrorInit = { status: false, message: null, code: 0}
 
-    //  use context api to pass selected files to child components
-export const SelectedFileContext = React.createContext([]);
+
 
 const Main = (props) => {
 
@@ -266,6 +265,15 @@ const Main = (props) => {
     }
 
     /*
+    * OPEN FILE IN NEW TAB
+    */
+    const openInNewTab = (file) => {
+        const newWindow = window.open(file.webViewLink, '_blank', 'noopener,noreferrer')
+        if (newWindow) newWindow.opener = null;
+    }
+
+    
+    /*
     *   ADD FILE TO SELECTED FILES
     */
     const addToSelected = (file) => {
@@ -380,6 +388,7 @@ const Main = (props) => {
                 <ListView files={files}
                           open={openFolder}
                           preview={openEmbed}
+                          openFile={openInNewTab}
                           grid={grid} addToSelected={addToSelected}
                           removeFromSelected={removeFromSelected}>
                 </ListView>

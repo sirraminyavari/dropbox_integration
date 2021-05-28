@@ -1,3 +1,8 @@
+import React from 'react';
+
+//  use context api to pass selected files to child components
+export const SelectedFileContext = React.createContext([]);
+
 export const dropboxToCilentModel = (s) => {
   const output = {
     id: s.id,

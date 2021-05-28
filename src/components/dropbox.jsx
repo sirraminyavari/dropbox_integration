@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {Dropbox} from 'dropbox';
-import { parseQueryString, resolveThumbnail, sortDropboxFiles, dropboxToCilentSearchModel } from './utils'
+import { parseQueryString, resolveThumbnail, sortDropboxFiles,
+  dropboxToCilentSearchModel, SelectedFileContext } from './utils'
 import { EMPTY, from, of } from 'rxjs';
-import { tap, map, switchMap, filter, mergeMap } from 'rxjs/operators';
+import { tap, map, switchMap, filter, mergeMap, first } from 'rxjs/operators';
 import { dropboxToCilentModel, makePath } from './utils'
 import ListView from './list.view'
 import { catchError } from 'rxjs/operators';
 import PathView from './path.view';
 import DropboxConnect from './dropbox.connect'
+import DropboxEmbedd from './dropbox.embedd';
 
 const STORAGE_KEY = 'pwnzolgprg7hngfkjscg59vd';
 const CLIENT_ID = `gguc9kwsbgr920c`;
@@ -30,7 +32,7 @@ const dbxInitialState = () => {
   }
 } 
 
-const DropboxMain = () => {
+const DropboxMain = (props) => {
 
   const [dbxData, setDbxData] = useState(() => dbxInitialState());
   const [dbx, setDbx] = useState(null);
@@ -256,31 +258,75 @@ const DropboxMain = () => {
     /*
     *   OPEN EMBEDED FILE PREVIEW
     */
-        const closeEmbed = () => {
-          
-      }
+  const closeEmbed = () => {
+        setEmbed({ status: false, url: ''})
+  }
   
   
-      /*
-      *   CLOSE EMBEDED FILE PREVIEW
-      */
-      const openEmbed = (file) => {
-          
-      }
+  /*
+  *   CLOSE EMBEDED FILE PREVIEW
+  */
+  const openEmbed = (file) => {
+      from(dbx.sharingCreateSharedLink({
+        path: file.pathLower,
+        short_url: false
+      })).pipe(
+        first(),
+        map(x => x.result),
+        tap(x => {
+          console.log(dbx)
+          setEmbed({ status: true, url: x.url})
+        })
+      ).subscribe();
+  }
 
-          /*
-    *   ADD FILE TO SELECTED FILES
-    */
-    const addToSelected = (file) => {
- 
+  const openInNewTab = (file) => {
+    from(dbx.sharingCreateSharedLink({
+      path: file.pathLower,
+      short_url: true
+    })).pipe(
+      first(),
+      map(x => x.result),
+      tap(x => {
+        const newWindow = window.open(x.url, '_blank', 'noopener,noreferrer')
+        if (newWindow) newWindow.opener = null;
+      })
+    ).subscribe();
+  }
+
+  /*
+      *   ADD FILE TO SELECTED FILES
+      */
+  const addToSelected = (file) => {
+    const exist = selected.find(x => x.id === file.id);
+    if (!exist) {
+        setSelected([...selected, file]);
+    }
   }
 
   /*
   *   REMOVE ITEM FROM SELECTED FILES
   */
   const removeFromSelected = (file) => {
-
+    const removed = selected.filter(x => x.id !== file.id);
+    setSelected(removed);
   }
+
+  /*
+  *   EMPTY SELECTED FILES ARRAY
+  */
+  const flushSelectedFiles = () => {
+    setSelected([]);
+  }
+
+/*
+*   PASS SELECTED FILES TO PARENT COMPONENT
+*/
+const insert = () => {
+  props.selected(selected);
+  flushSelectedFiles();
+}
+
 
   if (!dbxData.loggedIn) {
     return <DropboxConnect connect={() => connect()}></DropboxConnect>
@@ -292,7 +338,7 @@ const DropboxMain = () => {
         <div className="wrapper">
 
             <div className="disconnect-box">
-                {/* <button
+                <button
                     disabled={selected.length === 0}
                     className="insert-btn"
                     onClick={() => insert()}>
@@ -305,7 +351,7 @@ const DropboxMain = () => {
                     CANCEL
                 </button>
 
-                <div style={{flexGrow: 3}}></div> */}
+                <div style={{flexGrow: 3}}></div>
 
                 <button
                     className="disconnect-btn"
@@ -342,16 +388,17 @@ const DropboxMain = () => {
 
            {!searching &&  <PathView paths={location} navigate={navigatePath}></PathView>}
 
-            {/* { !fetchDataError.status &&
-            <SelectedFileContext.Provider value={selected}> */}
+            { !fetchDataError.status &&
+            <SelectedFileContext.Provider value={selected}>
                 <ListView files={files}
                           open={openFolder}
                           preview={openEmbed}
+                          openFile={openInNewTab}
                           grid={grid} addToSelected={addToSelected}
                           removeFromSelected={removeFromSelected}>
                 </ListView>
-            {/* </SelectedFileContext.Provider>
-            } */}
+            </SelectedFileContext.Provider>
+            }
 
             {
                 !loading && !fetchDataError.status && !searching &&
@@ -365,8 +412,13 @@ const DropboxMain = () => {
                 <div> ... loading ...</div>
             }
 
-            {/* {embed.status && <EmbedFilePreview close={closeEmbed} url={embed.url} api={gapi}></EmbedFilePreview>} */}
+            {embed.status && <DropboxEmbedd close={closeEmbed} url={embed.url}></DropboxEmbedd>}
 
+            <a 
+  href="https://www.dropbox.com/s/u0bdwmkjmqld9l2/dbx-supporting-distributed-work.gif?dl=0" 
+  className="dropbox-embed"
+  data-height="300px"
+></a>
             {/* {fetchDataError.status && <ErrorPage error={fetchDataError}
                                                  back={returnToHome}
                                                  reload={reset}></ErrorPage>} */}

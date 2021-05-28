@@ -43,8 +43,7 @@ const ListView = (props) => {
 
     //  open file in new tab and close context menu
     const openInNewTab = (file) => {
-        const newWindow = window.open(file.webViewLink, '_blank', 'noopener,noreferrer')
-        if (newWindow) newWindow.opener = null;
+        props.openFile(file);
         removeContext();
     }
 

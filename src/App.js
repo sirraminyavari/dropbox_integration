@@ -20,14 +20,19 @@ function App() {
   
   }, []);
 
+
+  const getSelectedItems = (files) => {
+    console.log(files);
+  }
+
   return (
     <div className="App">
       <div>
         <button onClick={() => setDrive('gdrive')}>GOOGLE DRIVE</button>
         <button onClick={() => setDrive('dropbox')}>DROPBOX</button>
       </div>
-      {drive === "gdrive" && <GoogleDrive></GoogleDrive>}
-      {drive === "dropbox" && <DropboxMain></DropboxMain>}
+      {drive === "gdrive" && <GoogleDrive selected={getSelectedItems}></GoogleDrive>}
+      {drive === "dropbox" && <DropboxMain selected={getSelectedItems}></DropboxMain>}
     </div>
   );
 }
