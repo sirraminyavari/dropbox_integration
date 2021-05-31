@@ -4,6 +4,7 @@ import React from 'react';
 export const SelectedFileContext = React.createContext([]);
 
 export const dropboxToCilentModel = (s) => {
+  console.log(s);
   const output = {
     id: s.id,
     type: s['.tag'],
@@ -12,12 +13,15 @@ export const dropboxToCilentModel = (s) => {
     pathLower: s.path_lower,
     hasThumbnail: false,
     thumbnail: '',
-    folderColorRgb: '#2196F3'
+    folderColorRgb: '#2196F3',
+    modifiedTime: s['client_modified'],
+    dbxItem: true,
   };
   return output;
 }
 
 export const gDriveToCilentModel = (s) => {
+  console.log(s);
   const output = {
     id: s.id,
     type: s.mimeType === 'application/vnd.google-apps.folder' ? 'folder': 'file',
@@ -27,7 +31,10 @@ export const gDriveToCilentModel = (s) => {
     thumbnail: s.hasThumbnail ? s.thumbnailLink: s.iconLink,
     folderColorRgb: s.folderColorRgb,
     parents: s.parents,
-    webViewLink: s.webViewLink
+    webViewLink: s.webViewLink,
+    iconLink: s.iconLink,
+    modifiedTime: s.modifiedTime,
+    dbxItem: false,
   };
   return output;
 }

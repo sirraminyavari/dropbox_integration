@@ -10,6 +10,7 @@ import { catchError } from 'rxjs/operators';
 import PathView from './path.view';
 import DropboxConnect from './dropbox.connect'
 import DropboxEmbedd from './dropbox.embedd';
+import ErrorPage from "./error.page";
 
 const STORAGE_KEY = 'pwnzolgprg7hngfkjscg59vd';
 const CLIENT_ID = `gguc9kwsbgr920c`;
@@ -327,6 +328,9 @@ const insert = () => {
   flushSelectedFiles();
 }
 
+const returnToHome = () => {
+  setFetchDataError(fetchDataErrorInit);
+}
 
   if (!dbxData.loggedIn) {
     return <DropboxConnect connect={() => connect()}></DropboxConnect>
@@ -414,14 +418,9 @@ const insert = () => {
 
             {embed.status && <DropboxEmbedd close={closeEmbed} url={embed.url}></DropboxEmbedd>}
 
-            <a 
-  href="https://www.dropbox.com/s/u0bdwmkjmqld9l2/dbx-supporting-distributed-work.gif?dl=0" 
-  className="dropbox-embed"
-  data-height="300px"
-></a>
-            {/* {fetchDataError.status && <ErrorPage error={fetchDataError}
+            {fetchDataError.status && <ErrorPage error={fetchDataError}
                                                  back={returnToHome}
-                                                 reload={reset}></ErrorPage>} */}
+                                                 reload={reset}></ErrorPage>}
         </div>
     </div>
   )

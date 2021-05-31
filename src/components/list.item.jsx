@@ -2,6 +2,7 @@ import React from 'react';
 import FolderIcon from "./folder.icon";
 import Checkbox from "./check.box";
 import {localDate, localTime} from "./util";
+import NoneIcon from './none.icon'
 
 const ListItem = (props) => {
 
@@ -27,9 +28,15 @@ const ListItem = (props) => {
             </div>
             }
 
-            {file.type !== 'folder' &&
-            <img src={file.hasThumbnail ? file.thumbnail : ''}
-                 className={file.hasThumbnail ? 'file-thumbnail': 'file-icon'} alt=""/>}
+            {file.type !== 'folder' && !file.dbxItem &&
+                <img src={file.hasThumbnail ? file.thumbnail: file.iconLink}
+                     className={file.hasThumbnail ? 'file-thumbnail': 'file-icon'} alt=""/>}
+
+            {file.type !== 'folder' && file.dbxItem && file.hasThumbnail &&
+                <img src={file.thumbnail}
+                     className={file.hasThumbnail ? 'file-thumbnail': 'file-icon'} alt=""/>}
+
+            {file.type !== 'folder' && file.dbxItem && !file.hasThumbnail && <NoneIcon></NoneIcon>}
 
             {file.type === 'folder' &&
             <FolderIcon color={file.folderColorRgb}></FolderIcon>}
